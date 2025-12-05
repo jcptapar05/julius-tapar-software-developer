@@ -1,85 +1,22 @@
-const express = require("express");
-const axios = require("axios");
-const { ethers } = require("ethers");
-const cors = require("cors");
+const express = require('express');
+const cors = require('cors');
+const mongoose = require('mongoose');
+const routes = require('./routes');
 
 const app = express();
+
 app.use(express.json());
+app.use(cors());
 
-const provider = new ethers.JsonRpcProvider("https://eth.llamarpc.com");
+const MONGODB_URI = 'mongodb+srv://root:admin123@mernstack.nspqs.mongodb.net/?appName=mernstack';
 
-app.use(cors())
+mongoose.connect(MONGODB_URI)
+  .then(() => console.log('Connected to MongoDB'))
+  .catch(err => console.error('MongoDB connection error:', err));
 
-app.get("/price", async (req, res) => {
-  try {
-    const resp = await axios.get(
-      "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd"
-    );
+app.use(routes);
 
-    res.json({
-      ethPriceUSD: resp.data.ethereum.usd,
-    });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch ETH price", details: err });
-  }
-});
-
-app.get("/gas", async (req, res) => {
-  try {
-    const block = await provider.getBlock("latest");
-
-    const baseFee = block.baseFeePerGas;
-    const priorityFee = ethers.parseUnits("2", "gwei"); // 2 gwei recommended
-
-    const maxFee = baseFee + priorityFee;
-
-    res.json({
-      baseFeePerGasGwei: ethers.formatUnits(baseFee, "gwei"),
-      priorityFeePerGasGwei: ethers.formatUnits(priorityFee, "gwei"),
-      maxFeePerGasGwei: ethers.formatUnits(maxFee, "gwei"),
-
-      baseFeePerGasWei: baseFee.toString(),
-      priorityFeePerGasWei: priorityFee.toString(),
-      maxFeePerGasWei: maxFee.toString(),
-    });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch gas info", details: err });
-  }
-});
-
-app.get("/block", async (req, res) => {
-  try {
-    const blockNumber = await provider.getBlockNumber();
-    res.json({ blockNumber });
-  } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to fetch block number", details: err });
-  }
-});
-
-app.get("/balance/:address", async (req, res) => {
-  try {
-    const { address } = req.params;
-
-    if (!ethers.isAddress(address)) {
-      return res.status(400).json({ error: "Invalid Ethereum address" });
-    }
-
-    const balanceWei = await provider.getBalance(address);
-    const balanceEth = ethers.formatEther(balanceWei);
-
-    res.json({
-      address,
-      balanceWei: balanceWei.toString(),
-      balanceEth,
-    });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch balance", details: err });
-  }
-});
-
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 app.listen(PORT, () => {
   console.log(`API running on http://localhost:${PORT}`);

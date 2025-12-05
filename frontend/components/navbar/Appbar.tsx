@@ -12,7 +12,10 @@ declare global {
     ethereum?: {
       request: (args: { method: string }) => Promise<string[]>;
       on: (event: string, callback: (accounts: string[]) => void) => void;
-      removeListener: (event: string, callback: (accounts: string[]) => void) => void;
+      removeListener: (
+        event: string,
+        callback: (accounts: string[]) => void
+      ) => void;
     };
   }
 }
@@ -20,30 +23,35 @@ declare global {
 export function Appbar() {
   const storeAddress = useAddressStore((state) => state.address);
   const setStoreAddress = useAddressStore((state) => state.setAddress);
-  
+
   const [localAddress, setLocalAddress] = React.useState<string | null>(null);
   const [copied, setCopied] = React.useState(false);
 
   const navItems = [
     { title: "Dashboard", href: "/dashboard" },
-    { title: "Mint", href: "/mint" },
     { title: "My Transactions", href: "/my-transactions" },
+
+    { title: "Mint", href: "/mint" },
+    {  title: "Mint History", href: "/mint-history" },
   ];
 
   const connectToWallet = async () => {
     if (typeof window !== "undefined" && window.ethereum) {
       try {
-        const accounts = await window.ethereum.request({ 
-          method: "eth_requestAccounts" 
-        }) as string[];
-        
+        const accounts = (await window.ethereum.request({
+          method: "eth_requestAccounts",
+        })) as string[];
+
         const connectedAccount = accounts[0];
         console.log("Connected account:", connectedAccount);
         setLocalAddress(connectedAccount);
         setStoreAddress(connectedAccount);
-        
+
         // Verify store was updated
-        console.log("Store address after setting:", useAddressStore.getState().address);
+        console.log(
+          "Store address after setting:",
+          useAddressStore.getState().address
+        );
       } catch (error: any) {
         console.error("Error connecting to wallet:", error);
         toast("Connection Error", {
@@ -62,10 +70,10 @@ export function Appbar() {
 
     const initializeWallet = async () => {
       try {
-        const accounts = await window.ethereum!.request({ 
-          method: "eth_accounts" 
-        }) as string[];
-        
+        const accounts = (await window.ethereum!.request({
+          method: "eth_accounts",
+        })) as string[];
+
         if (accounts.length > 0) {
           const account = accounts[0];
           setLocalAddress(account);
@@ -82,13 +90,16 @@ export function Appbar() {
     // Listen for account changes
     const handleAccountsChanged = (accounts: string[]) => {
       console.log("Accounts changed:", accounts);
-      
+
       if (accounts.length > 0) {
         const newAccount = accounts[0];
         setLocalAddress(newAccount);
         setStoreAddress(newAccount);
         console.log("Account changed to:", newAccount);
-        console.log("Store address after change:", useAddressStore.getState().address);
+        console.log(
+          "Store address after change:",
+          useAddressStore.getState().address
+        );
       } else {
         setLocalAddress(null);
         setStoreAddress(null);
@@ -129,12 +140,14 @@ export function Appbar() {
   return (
     <nav className="sticky top-0 z-50 backdrop-blur-md border-b border-slate-700/50">
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-        <Link
-          href="/"
-          className="text-xl font-bold bg-linear-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent"
-        >
-          Etherscan Explorer
-        </Link>
+        <div>
+          <Link
+            href="/dashboard"
+            className="text-xl font-bold bg-linear-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent"
+          >
+            Etherscan Explorer
+          </Link>
+        </div>
         <ul className="flex items-center gap-3">
           {navItems.map((item) => (
             <li key={item.href}>

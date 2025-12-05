@@ -14,3 +14,6 @@ npx hardhat ignition deploy ./ignition/modules/Lock.ts
 
 ## npx hardhat node
 ## npx hardhat run scripts/deploy.js --network localhost
+## npx hardhat run scripts/deploy.js --network sepolia
+
+## npx hardhat console --network sepolia/localhost

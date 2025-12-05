@@ -1,8 +1,6 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { formatEther } from "ethers";
-import { ArrowUpRight, Wallet } from "lucide-react";
 import { useAddressStore } from "@/stores/address";
 import axios from "axios";
 
@@ -11,33 +9,52 @@ const API_KEY = process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY;
 export function Transactions() {
   const address = useAddressStore((state: any) => state.address);
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const formatEthValue = (wei: any) => {
-    return (BigInt(wei) / BigInt(10) ** BigInt(18)).toString();
+    try {
+      return (BigInt(wei) / BigInt(10) ** BigInt(18)).toString();
+    } catch {
+      return "0";
+    }
   };
 
-  const formatAddress = (address: any) => {
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  const formatAddress = (addr: string) => {
+    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+  };
+
+  const formatDate = (timestamp: string) => {
+    return new Date(parseInt(timestamp) * 1000).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   const fetchTxHistory = async () => {
-    // const ad = "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"
+    setLoading(true);
+    setError("");
+
     const url = `https://api.etherscan.io/v2/api?chainid=1&module=account&action=txlist&address=${address}&page=1&offset=10&sort=desc&apikey=${API_KEY}`;
 
     try {
-      const res = await fetch(url);
-      const data = await res.json();
+      const res = await axios.get(url);
+      const data = res.data;
 
-      console.log("Etherscan data:", data);
       if (data.status === "1" && Array.isArray(data.result)) {
         setTransactions(data.result);
       } else {
-        // console.error("Etherscan error:", data);
         setTransactions([]);
       }
-    } catch (error) {
-      console.error("Fetch error:", error);
+    } catch (err) {
+      console.error("Fetch error:", err);
+      setError("Failed to fetch transactions");
       setTransactions([]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -47,116 +64,120 @@ export function Transactions() {
     }
   }, [address]);
 
-  return (
-    <div className="min-h-screen bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 relative overflow-hidden">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
-      </div>
-
-      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="mb-12">
-          <h1 className="text-4xl sm:text-5xl font-bold text-white mb-3">
+  if (!address) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center p-4">
+        <div className="w-full max-w-4xl bg-white rounded-lg shadow-2xl p-8 text-center">
+          <h1 className="text-3xl font-bold text-gray-800 mb-4">
             Transaction History
           </h1>
-          <p className="text-slate-400 text-lg">
-            {transactions.length > 0 ? (
-              <>
-                Showing{" "}
-                <span className="text-blue-400 font-semibold">
-                  {transactions.length}
-                </span>{" "}
-                transaction{transactions.length !== 1 ? "s" : ""}
-              </>
-            ) : (
-              "No transactions found"
-            )}
+          <p className="text-gray-600">
+            Please connect your wallet to view transaction history
           </p>
         </div>
+      </div>
+    );
+  }
 
-        <div className="space-y-4">
-          {transactions.length > 0 ? (
-            transactions.map((tx) => (
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center p-4">
+      <div className="w-full max-w-4xl bg-white rounded-lg shadow-2xl p-8">
+        <h1 className="text-3xl font-bold text-center mb-8 text-gray-800">
+          Transaction History
+        </h1>
+
+        {error && (
+          <div className="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+            {error}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="text-center py-12">
+            <p className="text-gray-600">Loading transactions...</p>
+          </div>
+        ) : transactions.length > 0 ? (
+          <div className="space-y-4">
+            {transactions.map((tx) => (
               <div
                 key={tx.hash}
-                className="group relative bg-slate-800/50 border border-slate-700/50 rounded-xl p-6 hover:border-slate-600 transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/10 hover:-translate-y-1"
+                className="bg-gray-100 p-4 rounded-lg hover:shadow-md transition"
               >
-                {/* Gradient overlay on hover */}
-                <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity bg-linear-to-r from-blue-500/5 to-purple-500/5 pointer-events-none"></div>
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 mb-1">Transaction Flow</p>
+                  <p className="font-semibold text-gray-800">
+                    {formatAddress(tx.from)}
+                    <span className="text-gray-500 mx-2">→</span>
+                    {formatAddress(tx.to)}
+                  </p>
+                  <a
+                    href={`https://etherscan.io/tx/${tx.hash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 font-mono text-xs truncate block mt-1"
+                    title={tx.hash}
+                  >
+                    {formatAddress(tx.hash)}
+                  </a>
+                </div>
 
-                <div className="relative z-10 space-y-4">
-                  {/* Top Section */}
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-4 flex-1 min-w-0">
-                      {/* Icon */}
-                      <div className="w-12 h-12 rounded-lg bg-linear-to-br from-blue-500 to-purple-500 flex items-center justify-center shrink-0 group-hover:shadow-lg group-hover:shadow-blue-500/20 transition">
-                        <ArrowUpRight className="w-6 h-6 text-white" />
-                      </div>
-
-                      {/* Address Flow */}
-                      <div className="min-w-0 flex-1">
-                        <p className="text-slate-300 font-medium text-sm mb-1">
-                          {formatAddress(tx.from)}{" "}
-                          <span className="text-slate-500 mx-1">→</span>{" "}
-                          {formatAddress(tx.to)}
-                        </p>
-                        <p className="text-xs text-slate-500 font-mono truncate">
-                          {tx.hash}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Value */}
-                    <div className="text-right shrink-0">
-                      <p className="text-xl font-bold bg-linear-to-r from-emerald-400 to-emerald-500 bg-clip-text text-transparent">
-                        {formatEthValue(tx.value)} ETH
-                      </p>
-                    </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1 font-semibold">
+                      Amount
+                    </p>
+                    <p className="font-bold text-gray-800">
+                      {formatEthValue(tx.value)} ETH
+                    </p>
                   </div>
-
-                  {/* Divider */}
-                  <div className="h-px bg-linear-to-r from-slate-700/50 to-transparent"></div>
-
-                  {/* Bottom Section */}
-                  <div className="grid grid-cols-2 gap-6">
-                    <div>
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                        From
-                      </p>
-                      <p className="text-sm text-slate-300 font-mono break-all">
-                        {tx.from}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                        To
-                      </p>
-                      <p className="text-sm text-slate-300 font-mono break-all">
-                        {tx.to}
-                      </p>
-                    </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1 font-semibold">
+                      Gas Used
+                    </p>
+                    <p className="font-bold text-gray-800">{tx.gas}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1 font-semibold">
+                      Status
+                    </p>
+                    <p
+                      className={`font-bold ${
+                        tx.isError === "0"
+                          ? "text-green-600"
+                          : "text-red-600"
+                      }`}
+                    >
+                      {tx.isError === "0" ? "Success" : "Failed"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1 font-semibold">
+                      Date
+                    </p>
+                    <p className="font-bold text-gray-800">
+                      {formatDate(tx.timeStamp)}
+                    </p>
                   </div>
                 </div>
               </div>
-            ))
-          ) : (
-            <div className="flex flex-col items-center justify-center min-h-96 bg-slate-800/30 border border-slate-700/30 rounded-xl">
-              <div className="w-16 h-16 rounded-full bg-slate-700/50 flex items-center justify-center mb-4">
-                <Wallet className="w-8 h-8 text-slate-500" />
-              </div>
-              <p className="text-slate-400 text-lg font-medium">
-                {address
-                  ? "No transactions found"
-                  : "Connect wallet to view transactions"}
-              </p>
-              <p className="text-slate-500 text-sm mt-2">
-                {address
-                  ? "Try a different address"
-                  : "Click the connect button above"}
-              </p>
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12 bg-gray-100 rounded-lg">
+            <p className="text-gray-600 font-medium">
+              No transactions found for this address
+            </p>
+            <p className="text-gray-500 text-sm mt-2">
+              Try searching for a different address
+            </p>
+          </div>
+        )}
+
+        {transactions.length > 0 && (
+          <div className="mt-6 text-center text-sm text-gray-600">
+            Showing {transactions.length} recent transactions
+          </div>
+        )}
       </div>
     </div>
   );
